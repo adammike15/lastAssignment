@@ -18,7 +18,7 @@ using Amazon.DynamoDBv2.Model;
 namespace govSpendingDataConnect
 {
     //create a class for incoming objects to be created
-    /*
+    
     public class StateListing
     {
         public string name;
@@ -27,7 +27,7 @@ namespace govSpendingDataConnect
         public double amount;
         public string type;
     }
-    */
+    
 
     public class Function
     {
@@ -40,34 +40,52 @@ namespace govSpendingDataConnect
 
 
 
-        public async Task<ExpandoObject> FunctionHandler(String input, ILambdaContext context)
+        public async Task<List<object>> FunctionHandler(String input, ILambdaContext context)
         {
 
 
             //gather uRL to connect to
             var url = "https://api.usaspending.gov/api/v2/recipient/state/";
-            //var url = "https://official-joke-api.appspot.com/random_ten";
 
-            //Query the url
+
+            //Query the url and get string response
             string response = await client.GetStringAsync(url);
 
 
+            //add text to string response to allow deserialization
+            response = "{stateSpending:" + response + "}";
 
-            //convert results into objects
+
+            //convert results into an object
             dynamic expando = JsonConvert.DeserializeObject<ExpandoObject>(response);
-            //StateListing slisting = JsonConvert.DeserializeObject<StateListing>(response);
-             
+
+
+            //create a list of objects
+            List<object> listings = new List<object>();
+
+            //Reduce expando object into manageable data
+            foreach (object x in expando.stateSpending)
+            {
+                listings.Add(x);
+
+            }
+
+
 
             //place items from list into dynamo db table
-            //Table govSpending = Table.LoadTable(dynamoClient, tableName);
+            Table govSpending = Table.LoadTable(dynamoClient, tableName);
 
+            
             //-AWS Convention below.  If it's not present, document will return NULL below
             //-----------------------------------------------
             PutItemOperationConfig config = new PutItemOperationConfig();
             config.ReturnValues = ReturnValues.AllOldAttributes;
 
+            //submit items into the Dynamo Table
+            //await govSpending.PutItemAsync(Document.FromJson(JsonConvert.SerializeObject(listings)));
+            //PutItemResponse res = Document.FromJson(JsonConvert.SerializeObject(listings)).ToAttributeMap();
 
-            return expando;
+            return listings;
         }
     }
 }
